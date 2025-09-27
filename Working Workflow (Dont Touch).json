@@ -1,0 +1,968 @@
+{
+  "name": "Working Workflow (Dont Touch)",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apollo.io/api/v1/mixed_people/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cache-Control",
+              "value": "no-cache"
+            },
+            {
+              "name": "x-api-key",
+              "value": "KArX8OZoIcw8JPh5BN6NsA"
+            },
+            {
+              "name": "x-api-key",
+              "value": "KArX8OZoIcw8JPh5BN6NsA"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"person_titles\": {{ $json.targetRoles ? JSON.stringify($json.targetRoles) : \"[]\" }},\n  \"industries\": {{ $json.industry ? JSON.stringify($json.industry) : \"[]\" }},\n  \"company_keywords\": {{ $json.filters && $json.filters.companyKeywords ? JSON.stringify($json.filters.companyKeywords) : \"[]\" }},\n  \"locations\": {{ $json.region ? JSON.stringify($json.region) : \"[]\" }},\n  \"per_page\": 30,\n  \"include_emails\": true,\n  \"custom_company\": {{ $json.company ? JSON.stringify($json.company) : \"\\\"\\\"\" }},\n  \"sort_by\": \"created_at\",\n  \"sort_dir\": \"asc\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1056,
+        -128
+      ],
+      "id": "853fc1be-6633-464b-b1f5-583a9a091e44",
+      "name": "HTTP Request",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const matches = $input.first().json.matches || [];\nconst clientName = $input.first().json.clientName;\nconsole.log(clientName,$input.first().json.matches[0].title)\nconst results = [];\n\nfor (const match of matches) {\n  // Skip if no match or no valid email\n  if (!match || !match.email || match.email.trim() === \"\") {\n    continue;\n  }\n\n  results.push({\n    json: {\n      id: match.id,\n      \"First Name\": match.first_name,\n      \"Last Name\": match.last_name,\n      \"Email\": match.email,\n      \"Job Title\": match.title,\n      \"State\": match.state,\n      \"Country\": match.country,\n      \"Phone\": match.organization?.phone,\n      \"Industry\": match.organization?.industry,\n      \"LinkedIn\": match.linkedin_url,\n      \"Company Name\": match.employment_history?.[0]?.organization_name,\n      \"clientName\": clientName\n    }\n  });\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1312,
+        304
+      ],
+      "id": "5da2b0de-ed15-4313-9774-f43713914d64",
+      "name": "Collect Maches",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apollo.io/api/v1/people/bulk_match",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "reveal_personal_emails",
+              "value": "false"
+            },
+            {
+              "name": "reveal_phone_number",
+              "value": "false"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cache-Control",
+              "value": "no-cache"
+            },
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "x-api-key",
+              "value": "KArX8OZoIcw8JPh5BN6NsA"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"api_key\": \"KArX8OZoIcw8JPh5BN6NsA\",\n  \"details\": [\n    { \"id\": \"{{ $json[\"id\"] }}\" }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        32
+      ],
+      "id": "9c1f9f0f-3d9f-488a-b5e5-e4097d83b631",
+      "name": "Collect People Info with email"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1936,
+        -192
+      ],
+      "id": "7a97bbb9-9bdc-4ed1-8140-f9fa9560194d",
+      "name": "Schedule Trigger",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1sik1uBsaf57-8rZ21u-viKPXznbxeSmRt0X19k_dvkM/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1sik1uBsaf57-8rZ21u-viKPXznbxeSmRt0X19k_dvkM/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email": "={{ $('Code2').item.json.Email }}",
+            "First Name": "={{ $('Code2').item.json['First Name'] }}",
+            "Last Name": "={{ $('Code2').item.json['Last Name'] }}",
+            "Phone Number": "={{   (() => {     const raw = $('Code2').item.json.Phone || \"\";     const digits = raw.replace(/[^0-9]/g, \"\");     return digits ? \"+\" + digits : \"\";   })() }}",
+            "Message": "={{ $json.message.content }}",
+            "Job Title": "={{ $('Code2').item.json['Job Title'] }}",
+            "B2BBD Client Name": "={{ $('Code2').item.json.clientName }}",
+            "Company Name": "={{ $('Code2').item.json['Company Name'] }}",
+            "Linkedin URL": "={{ $('Code2').item.json.LinkedIn }}",
+            "Approval": "pending",
+            "Industry": "={{ $('Code2').item.json.Industry }}"
+          },
+          "matchingColumns": [
+            "Email"
+          ],
+          "schema": [
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last Name",
+              "displayName": "Last Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "B2BBD Client Name",
+              "displayName": "B2BBD Client Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Linkedin URL",
+              "displayName": "Linkedin URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Approval",
+              "displayName": "Approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Industry",
+              "displayName": "Industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        288
+      ],
+      "id": "52a441c2-5987-4fca-bd2a-ed397a85df9c",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9vhQyVzLaOYa1Mjo",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1312,
+        32
+      ],
+      "id": "2c8e6180-06b8-4f4a-a546-d4b2d973f73d",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -128,
+        16
+      ],
+      "id": "6107fea2-8df8-4a27-8067-9fc5a99593b7",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1600,
+        304
+      ],
+      "id": "8ecf5944-16c9-44c6-8694-23754c4d0a09",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1904,
+        288
+      ],
+      "id": "cdf19dd8-5db6-4107-b5c5-9e09b9364790",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -384,
+        48
+      ],
+      "id": "13d576ff-7243-4e64-bdb1-a93818c72ed2",
+      "name": "Merge3"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -816,
+        32
+      ],
+      "id": "d65609a9-605b-4983-8a2f-7d3bb8c65e06",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the \nconst dataArray = $input.first().json.people || [];\nconst company = $input.first().json.company;\n\nreturn dataArray.map(person => {\n  return {\n    json: {\n      id: person.id,\n      clientName: company\n    }\n  };\n});\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        32
+      ],
+      "id": "a8b9a141-f834-495f-88ab-0e166f8c8939",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4b90ba96-1edf-4897-a159-2c0ed795cc0b",
+              "leftValue": "={{ $json.hasData }}",
+              "rightValue": {},
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -704,
+        304
+      ],
+      "id": "5e1a0b05-6fea-4d69-882b-c9879688dd9d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "if (!$json || Object.keys($json).length === 0) {\n  return [{ json: { hasData: false } }];\n}\n\nreturn [{ json: { hasData: true, ...$json } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -976,
+        304
+      ],
+      "id": "0786c13c-e833-480a-850f-a0332cbc7813",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1iUEv8j60R6qja1hgVXXVntEXD9YI2QziLBQA62Njz_E/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1iUEv8j60R6qja1hgVXXVntEXD9YI2QziLBQA62Njz_E/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1792,
+        32
+      ],
+      "id": "1295dddc-8ba8-4946-9b3f-6db4105c747f",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9vhQyVzLaOYa1Mjo",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      allRows: items.map((row) => {\n        const industryArray = row.json[\"Industry Focus\"]\n          ? row.json[\"Industry Focus\"].split(\",\").map((i) => i.trim())\n          : [];\n\n        const targetRolesArray = row.json[\"Key Buyer Personas\"]\n          ? row.json[\"Key Buyer Personas\"].split(\",\").map((i) => i.trim())\n          : [];\n\n        const locationArray = row.json[\"Geography\"]\n          ? row.json[\"Geography\"].split(/,|&/).map((i) => i.trim())\n          : [];\n\n        const companyKeywordsArray = row.json[\n          \"Boolean Search Filter (Apollo/LinkedIn)\"\n        ]\n          ? row.json[\"Boolean Search Filter (Apollo/LinkedIn)\"]\n              .replace(/[()\"']/g, \"\")\n              .split(\" OR \")\n              .map((i) => i.trim())\n          : [];\n        return {\n          company: row.json[\"Client\"] || \"\",\n          region: row.json[\"Geography\"] || \"\",\n          industry: industryArray,\n          companySize: row.json[\"Target Company Size\"] || \"\",\n          targetRoles: targetRolesArray,\n          painPoints: row.json[\"Pain Points Solved\"]\n            ? row.json[\"Pain Points Solved\"].split(\",\").map((i) => i.trim())\n            : [],\n          dealSize: row.json[\"Tech Maturity\"] || \"\",\n          salesCycle: row.json[\"Sales Cycle\"] || \"\",\n          filters: {\n                        industry: industryArray,\n                        location: locationArray,\n                        company_keywords: companyKeywordsArray,\n                        jobTitles: targetRolesArray,\n                    },\n        };\n      }),\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        32
+      ],
+      "id": "0fb44ca2-05c0-431d-aea6-f146a1a006ff",
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ICPData = $input.first().json.allRows;\n\n// Get persistent static data\nconst staticData = $getWorkflowStaticData('global');\nlet currentPage = staticData.apolloPage || 0;\n\n// Increment page\ncurrentPage++;\nstaticData.apolloPage = currentPage;\n\n// Build workflow items\nconst workflowItems = ICPData.map((item) => {\n  return {\n    json: {\n      ...item,\n      filters: {\n        ...(item.filters || {}),\n        page: currentPage,\n      },\n    },\n  };\n});\n\nreturn workflowItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1520,
+        32
+      ],
+      "id": "6d98d6ff-0f64-4371-a8f8-9e9f5f884647",
+      "name": "Code5"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1952,
+        32
+      ],
+      "id": "5a421062-d2f1-4852-910d-d2514f0a1bf7",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -352,
+        560
+      ],
+      "id": "222af031-0c8f-4a5a-aa93-c7bdc6e7de2e",
+      "name": "Wait",
+      "webhookId": "a0d7a2d1-f888-4e10-86d8-076a179b7ff8",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-5-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=<persona>\nYou are an email composer specializing in cold outreach emails.\n</persona>\n<task>\nWrite a cold outreach email using the provided prospect data.\n</task>\n<requirements>\n<greeting>\n\"Hi, {{ $json['First Name'] }}\"\n</greeting>\n<subject_line>\nNatural, short, sentence case\nMaximum 6 words\n</subject_line>\n<tone>\nProfessional but warm\nConsultative and confident\nNever pushy\n</tone>\n<structure>\nUse short sentences\nClear spacing between paragraphs\nNo long paragraphs\nNo em dashes\nNo jargon\n</structure>\n</requirements>\n<content_rules>\n<research>\nShow you've researched {{ $json['Company Name'] }} and the role {{ $json['Job Title'] }}\nAlways weave in both naturally (e.g., \"As a {{ $json['Job Title'] }} at {{ $json['Company Name'] }}…\")\n</research>\n<client_representation>\nMake it clear this outreach is on behalf of {{ $json.clientName }}\nChoose the most relevant client for {{ $json['Company Name'] }}'s {{ $json.Industry }} and {{ $json['Job Title'] }}\nAlways present {{ $json.clientName }} as the solution provider, offering a relevant product or service\nEven if {{ $json.clientName }} is B2BBD, present them as solution provider\nNever portray {{ $json.clientName }} as a client or customer to avoid confusion\n</client_representation>\n<value_proposition>\nExplain why that client's solution matters to the prospect's role/company\nFocus on pain point + benefit connection\nAdd gentle tension: highlight a missed opportunity, challenge, or inefficiency they face\n</value_proposition>\n<language_guidelines>\nKeep language varied and natural (avoid repetition)\nIf relevant, optionally reference {{ $json.Country }} to strengthen local context\n</language_guidelines>\n<closing>\nLight, low-friction invitation to explore further\nNo hard sell\nIMPORTANT: Check {{ $json.clientName }} exactly and use ONLY the matching signature below:\nIf {{ $json.clientName }} is exactly \"B2BBD\", use ONLY this closing:\nRegards,\nNica\nIf {{ $json.clientName }} is exactly \"Ligentia\", use ONLY this closing:\nBest regards,\nMicah Nica Parana\nBDR for B2BBD | APAC Sales Partner for Ligentia\nhttps://www.ligentia.com | www.b2bbdsales.com\nNot the right fit? Reply STOP and I'll take you off my list\nIf {{ $json.clientName }} is exactly \"Wogi\", use ONLY this closing:\nBest regards,\nMicah Nica Parana\nBDR for B2BBD | APAC Sales Partner for Wogi\nhttps://wogi.biz | www.b2bbdsales.com\nNot the right fit? Reply STOP and I'll take you off my list\nIf {{ $json.clientName }} is exactly \"Iterable\", use ONLY this closing:\nBest regards,\nMicah Nica Parana BDR for B2BBD | APAC Sales Partner for Iterable\nwww.iterable.com | www.b2bbdsales.com\nNot the right fit? Reply STOP and I'll take you off my list.\nIf {{ $json.clientName }} is exactly \"Vypr\", use ONLY this closing:\nBest regards,\nMicah Nica Parana BDR for B2BBD | APAC Sales Partner for Vypr\nhttps://vyprclients.com | www.b2bbdsales.com\nNot the right fit? Reply STOP and I'll take you off my list.\nDO NOT mix signatures - use only the exact signature that matches the clientName.\n</closing>\n</content_rules>"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -160,
+        288
+      ],
+      "id": "7b03db01-a58a-48d3-9de6-05495f049140",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "ItlSzsUhiFUD7Xd2",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        64,
+        464
+      ],
+      "id": "945bd0ad-3f99-4f4f-a120-62b3527c08da",
+      "name": "Think1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1sik1uBsaf57-8rZ21u-viKPXznbxeSmRt0X19k_dvkM",
+          "mode": "list",
+          "cachedResultName": "B2BBD - BDX Automation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1sik1uBsaf57-8rZ21u-viKPXznbxeSmRt0X19k_dvkM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1sik1uBsaf57-8rZ21u-viKPXznbxeSmRt0X19k_dvkM/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Approval",
+              "lookupValue": "pass"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1296,
+        528
+      ],
+      "id": "e41626c9-9b33-476c-a419-d5d69be46795",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9vhQyVzLaOYa1Mjo",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "engagement",
+        "type": "email",
+        "metadata": {
+          "fromEmail": "=nica.parana@b2bbdsales.com",
+          "toEmail": [
+            ""
+          ]
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.1,
+      "position": [
+        -1104,
+        528
+      ],
+      "id": "91952ee1-a680-4ef7-b30b-97ed221429aa",
+      "name": "Create an engagement",
+      "credentials": {
+        "hubspotOAuth2Api": {
+          "id": "sWxnBvuzmLRrJoxd",
+          "name": "HubSpot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "email": "matt.cave@b2bbdsales.com",
+        "additionalFields": {
+          "companyName": "",
+          "firstName": "",
+          "jobTitle": "",
+          "lastName": "",
+          "mobilePhoneNumber": "",
+          "workEmail": ""
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.1,
+      "position": [
+        -944,
+        528
+      ],
+      "id": "1e53e249-2539-43b1-a34a-68a1cecee882",
+      "name": "Create or update a contact",
+      "credentials": {
+        "hubspotOAuth2Api": {
+          "id": "sWxnBvuzmLRrJoxd",
+          "name": "HubSpot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Next is \n\nAdd a node to read the sheets. \n(Where Approval = pass the email connected to it will receive an email from Create an Engagement node and the email sending is nica.parana@b2bbdsales.com)\n\nCreate node for add contacts where approval pass = hasData email. Gather all information in HubSpot API docs what is gatherable. \n\n",
+        "height": 368,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2016,
+        480
+      ],
+      "typeVersion": 1,
+      "id": "4fc467b8-8c40-48ee-9ff2-42051df26bc8",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -416,
+        288
+      ],
+      "id": "4b79bd7b-673a-4d82-ab0e-18805fd22b1d",
+      "name": "Wait1",
+      "webhookId": "eef850ad-cc9e-44ec-9975-2a44f1b6ceb6"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        192,
+        288
+      ],
+      "id": "1d271221-9571-49b7-b8f4-840c76c95566",
+      "name": "Wait2",
+      "webhookId": "52897e92-958b-49d5-a1bf-661b4c4ee847"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Maches": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect People Info with email": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Collect People Info with email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Collect Maches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        []
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Message a model",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        []
+      ]
+    },
+    "Create an engagement": {
+      "main": [
+        [
+          {
+            "node": "Create or update a contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9c19bd7b-2573-4e0c-855d-178d1a1d2705",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3677de133d78eb4340f250607c06959b6bab139d4299c0e804b6abf4f6deba2d"
+  },
+  "id": "Tfv3p7M2Pe2CKT3h",
+  "tags": []
+}
